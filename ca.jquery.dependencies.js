@@ -4,90 +4,86 @@
   // ENV
   // --------------------------------------------------------------------------
 
-  // A list of human readable, easier to manipulate, names for dependencies
-  var DEP_NAME = {};
-
-  // Dependencies are indexed by URL
+  // Files are indexed by URL
   //
-  // Each dependencies record:
+  // Each file record:
+  // * name   : the name of the library (file name without '.js' by default)
   // * loader : A Deffered object handling the loading of the resource
   // * lazy   : An Array of function name (or false if no JIT load)
-  // * require: An Array of dependencies name required to load that dependency
-  var DEP_LIST = {};
+  // * require: An Array of FILES name required to load that library
+  var FILES = {};
 
 
   // UTILS
   // --------------------------------------------------------------------------
-  function record(dep) {
+  function record(libraries) {
     var list   = [];
-    function stringRecorder(i, url) {
-      if (!(url in DEP_LIST)) {
-        $.extend(DEP_LIST, normalize(url));
 
-        if (hasCircularDependencies(url)) {
-          throw new Error('Circular dependency detected: ' + url);
-        }
-
-        list.push(url);
+    function recordOne(key, obj) {
+      if (!(key in FILES)) {
+        $.extend(FILES, normalize(key, obj));
+        list.push(key);
       }
     }
 
     // dep can be an Array when there is a single dependency
-    if (typeof dep === 'string') {
-      stringRecorder(null, dep);
+    if (typeof libraries === 'string') {
+      recordOne(libraries, libraries);
     }
 
-    // dep can be an array of string for list of simple dependencies
-    else if ($.isArray(dep)) {
-      $.each(dep, stringRecorder);
-    }
-
-    else if ($.isPlainObject(dep)) {
-      $.each(dep, function (k, value) {
-        if (value.lazy === true) {
-          value.lazy = k;
-        }
-
-        var v = normalize(value);
-
-        if (!(value.url in DEP_LIST)) {
-          $.extend(DEP_LIST, v);
-          DEP_NAME[k] = value.url;
-
-          if (hasCircularDependencies(value.url)) {
-            throw new Error('Circular dependency detected: ' + value.url);
-          }
-
-          list.push(value.url);
-        }
+    // dep can be an array of string for list of simple libraries
+    else if ($.isArray(libraries)) {
+      $.each(libraries, function (i, url) {
+        recordOne(url, url);
       });
+    }
+
+    else if ($.isPlainObject(libraries)) {
+      $.each(libraries, recordOne);
     }
 
     return list;
   }
 
-  // Normalize and sanitize a dependency record
-  function normalize(dep) {
-    var base = {lazy: false, loader: null, require: false};
-    var obj  = {};
+  // Normalize and sanitize a library record
+  function normalize(key, value) {
+    var out  = {};
+    var base = {
+      name   : value.url ? key : key.slice(key.lastIndexOf('/') + 1, -3),
+      lazy   : false,
+      loader : null,
+      require: false
+    };
 
-    if (typeof dep === 'string') {
-      obj[dep] = $.extend({}, base);
+    if (!value || typeof value === 'string') {
+      out[key] = $.extend({}, base);
     }
 
-    else if ($.isPlainObject(dep) && 'url' in dep) {
-      obj[dep.url] = {
+    else if ($.isArray(value)) {
+      if (value.length) {
+        base.require = value;
+      }
+
+      out[key] = $.extend({}, base);
+    }
+
+    else if ($.isPlainObject(value) && 'url' in value) {
+      out[value.url] = {
+        name   : key,
         loader : null,
-        lazy   : $.isArray(dep.lazy)             ?  dep.lazy     :
-                 typeof dep.lazy === 'string'    ? [dep.lazy]    :
+        lazy   : $.isArray(value.lazy) && value.lazy.length > 0 ? value.lazy :
+                 typeof value.lazy === 'string' ? [value.lazy] :
+                 value.lazy === true ? [key] :
                  false,
-        require: $.isArray(dep.require)          ?  dep.require  :
-                 typeof dep.require === 'string' ? [dep.require] :
+        require: $.isArray(value.require) && value.require.length > 0 ? value.require :
+                 typeof value.require === 'string' ? [value.require] :
                  false
       };
     }
 
-    return obj;
+    console.log(out);
+
+    return out;
   }
 
   // Check for circular dependencies
@@ -95,17 +91,29 @@
     var result = false;
     var topurl = circle || url;
 
-    if (DEP_LIST[url].require) {
-      $.each(DEP_LIST[url].require, function (i, v) {
-        var url = DEP_NAME[v] || v;
+    if (FILES[url].require) {
+      $.each(FILES[url].require, function (i, v) {
+        var url = v in FILES ? v : urlByName(v);
 
-        if (DEP_LIST[url]) {
+        if (FILES[url]) {
           result = topurl === url || hasCircularDependencies(url, topurl);
         }
       });
     }
 
     return result;
+  }
+
+  function urlByName(name) {
+    var url;
+
+    $.each(FILES, function (uri, file) {
+      if (file.name === name) {
+        url = uri;
+      }
+    });
+
+    return url;
   }
 
   // LOAD
@@ -125,44 +133,47 @@
     // We never load script before the DOM is ready
     $(function () {
       $.each(list, function (i, val) {
-        var url = DEP_NAME[val] || val,
-            dep = DEP_LIST[url];
+        var url   = val in FILES ? val : urlByName(val),
+            file  = FILES[url],
+            param = {
+              url     : url,
+              dataType: 'script',
+              cache   : true
+            };
 
         function error() {
           result.reject('Unable to load: ' + url);
         }
 
-        if (dep.lazy) {
-          setUpLazy(dep.lazy, url);
+        if (!file) {
+          result.reject('Unknown file: ' + val);
+        }
+
+        else if (file.loader && file.loader.state() !== 'rejected') {
+          file.loader.done(success).fail(error);
+        }
+
+        else if (hasCircularDependencies(url)) {
+          result.reject('Circular dependency detected: ' + url);
+        }
+
+        else if (file.lazy) {
+          setUpLazy(file.lazy, url);
           success();
         }
 
-        else if (!dep.loader || dep.loader.state() === 'rejected') {
-          if (dep.require) {
-            load(dep.require).done(function () {
-              if (!dep.loader) {
-                dep.loader = $.ajax({
-                  url: url,
-                  dataType: 'script',
-                  cache: true
-                });
-              }
+        else if (file.require) {
+          load(file.require).done(function () {
+            if (!file.loader || file.loader.state() === 'rejected') {
+              file.loader = $.ajax(param);
+            }
 
-              dep.loader.done(success).fail(error);
-            });
-          }
-
-          else {
-            dep.loader = $.ajax({
-              url: url,
-              dataType: 'script',
-              cache: true
-            }).done(success).fail(error);
-          }
+            file.loader.done(success).fail(error);
+          }).fail(error);
         }
 
         else {
-          dep.loader.done(success).fail(error);
+          file.loader = $.ajax(param).done(success).fail(error);
         }
       });
     });
@@ -174,52 +185,55 @@
     $.each(fns, function (i, fn) {
       if(!$.fn[fn]) {
         $.fn[fn] = function () {
-          var that = bust(this, fn);
-          var args = arguments;
+          var dummy = proxify(this, fn, arguments);
 
-          DEP_LIST[url].lazy = false;
+          FILES[url].lazy = false;
 
-          load([url]).done(function () {
-            $.fn[fn].apply(that._that, args);
-            that._unbust();
+          load([url]).always(function () {
+            dummy._deproxify();
           });
 
-          return that;
+          return dummy;
         };
       }
     });
   }
 
   // TODO: This need to be seriously tested
-  function bust(jqObj, fn) {
-    var queue = [];
-    var dummy = {
-      _that  : jqObj,
-      _unbust: function () {
-        $.each(queue, function (i, obj) {
-          jqObj = jqObj[obj.fn].apply(jqObj, obj.args);
-        });
+  function proxify(jqObj, fn, args) {
+    var timer = $.Deferred();
 
-        dummy = jqObj;
+    timer.done(function () {
+      jqObj = $.fn[fn].apply(jqObj, args);
+    });
+
+    var proxy = {
+      _deproxify: function () {
+        timer.resolve();
       }
     };
 
-    for(var key in jqObj) {
-      (function (key) {
-        if (key !== fn && $.isFunction(jqObj[key])) {
-          dummy[key] = function () {
-            queue.push({
-              fn  : key,
-              args: arguments
-            });
-          };
-        } else {
-          dummy[key] = jqObj[key];
-        }
-      })(key);
+    function puppet(key) {
+      if (!$.isFunction(jqObj[key])) {
+        return jqObj[key];
+      }
+
+      return function () {
+        var args = arguments;
+
+        timer.done(function () {
+          jqObj = $.fn[key].apply(jqObj, args);
+        });
+
+        return proxy;
+      };
     }
 
-    return dummy;
+    for(var key in jqObj) {
+      proxy[key] = puppet(key);
+    }
+
+    return proxy;
   }
 
   // PUBLIC API
