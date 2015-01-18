@@ -5,7 +5,7 @@
 
   $.fn.b = function () {
     $('#log')
-      .append('b has been called: ' + arguments[0].toString() + '\n');
+      .append('b has been called: ' + arguments[0] + '\n');
 
     return this;
   };

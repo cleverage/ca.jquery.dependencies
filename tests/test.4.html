@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <title>Test async load</title>
 
-<p>Test loading a single dependency (string parameter)</p>
+<p>Test loading multiple dependency with requirement (Nammed Object parameter)</p>
 
 <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
 <script src="/ca.jquery.dependencies.js"></script>
@@ -12,7 +12,19 @@ jQuery(function () {
 });
 
 jQuery
-  .dependencies('assets/test.a.js')
+  .dependencies({
+    a: {
+      url: 'assets/test.a.js',
+      require: ['b','c']
+    },
+    b: {
+      url: 'assets/test.b.js'
+    },
+    c: {
+      url: 'assets/test.c.js',
+      require: ['b']
+    }
+  })
   .fail(function (err) {
     'use strict';
     $('#log').append(err + '\n');
@@ -22,7 +34,7 @@ jQuery
     $('#log').append('All dependencies loaded\n');
   })
   .done(function () {
-    $('pre').a(1).css({
+    $('pre').a(1).b(2).c(3).css({
       color: 'green'
     });
   });
