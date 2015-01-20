@@ -228,7 +228,9 @@
     }
 
     for(var key in jqObj) {
-      proxy[key] = puppet(key);
+      if (key !== '_deproxify') {
+        proxy[key] = puppet(key);
+      }
     }
 
     return proxy;
