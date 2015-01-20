@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<title>2. Test async loading</title>
+<title>4.1. Test simple lazy loading</title>
 <link rel="stylesheet" href="assets/styles.css">
 
 <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
 <script src="/ca.jquery.dependencies.js"></script>
 
-<p>Test loading a multiple dependencies in any order (Array parameter)</p>
+<p>Test lazy loading of a file when its function is called</p>
 
 <h1>Test result</h1>
 
@@ -20,7 +20,9 @@ test.*.js loaded
 test.*.js loaded
 All dependencies loaded
 a has been called: ok
-b has been called: ok</pre>
+test.b.js loaded
+b has been called: ok
+c has been called: ok</pre>
 </table>
 
 <h1>Code</h1>
@@ -28,27 +30,30 @@ b has been called: ok</pre>
 <script class="show">(function ($) {
   'use strict';
 
-  // Testing loading multiple dependencies in any order
-  // --------------------------------------------------
+  // Testing lazy loading of a dependencies,
+  // assuming the name of the function is the
+  // same as the name of the dependency.
+  // --------------------------------------------
 
-  $.dependencies([
-      'assets/test.a.js',
-      'assets/test.b.js'
-    ])
+  $.dependencies({
+      a: { url: 'assets/test.a.js'},
+      b: { url: 'assets/test.b.js', lazy: true},
+      c: { url: 'assets/test.c.js'}
+    })
    .always(whatever)
    .fail(error)
    .done(success);
 
 
   // UTILS
-  // --------------------------------------------------
+  // --------------------------------------------
 
   function error(err) {
     $('#log').append(err + '\n');
   }
 
   function success() {
-    $('#log').a('ok').b('ok').css({
+    $('#log').a('ok').b('ok').c('ok').css({
       color: 'green'
     });
   }

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<title>2. Test async loading</title>
+<title>3.1. Test loading with dependencies (implicite naming)</title>
 <link rel="stylesheet" href="assets/styles.css">
 
 <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
 <script src="/ca.jquery.dependencies.js"></script>
 
-<p>Test loading a multiple dependencies in any order (Array parameter)</p>
+<p>Test loading a multiple dependencies with explicit requirement and implicite naming (implicite naming use the name of the file without the <code>.js</code> extension as name).</p>
 
 <h1>Test result</h1>
 
@@ -16,11 +16,13 @@
   <tr>
     <td><pre id="log"></pre>
     <td><pre>DOM Ready
-test.*.js loaded
-test.*.js loaded
+test.b.js loaded
+test.c.js loaded
+test.a.js loaded
 All dependencies loaded
 a has been called: ok
-b has been called: ok</pre>
+b has been called: ok
+c has been called: ok</pre>
 </table>
 
 <h1>Code</h1>
@@ -28,27 +30,29 @@ b has been called: ok</pre>
 <script class="show">(function ($) {
   'use strict';
 
-  // Testing loading multiple dependencies in any order
-  // --------------------------------------------------
+  // Testing loading multiple dependencies with
+  // requirements (syntaxe with implicite naming)
+  // --------------------------------------------
 
-  $.dependencies([
-      'assets/test.a.js',
-      'assets/test.b.js'
-    ])
+  $.dependencies({
+      'assets/test.a.js': ['test.b','test.c'],
+      'assets/test.b.js': false, // could be any falsy value
+      'assets/test.c.js': ['test.b']
+    })
    .always(whatever)
    .fail(error)
    .done(success);
 
 
   // UTILS
-  // --------------------------------------------------
+  // --------------------------------------------
 
   function error(err) {
     $('#log').append(err + '\n');
   }
 
   function success() {
-    $('#log').a('ok').b('ok').css({
+    $('#log').a('ok').b('ok').c('ok').css({
       color: 'green'
     });
   }

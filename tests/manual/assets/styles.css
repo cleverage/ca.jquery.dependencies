@@ -1,0 +1,36 @@
+body {
+  font: 1em sans-serif;
+}
+
+h1 {
+  font-size: 1em;
+  margin: 1.5em 0 .5em;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 1em;
+}
+
+th {
+  background: #CCC;
+}
+
+th, td {
+  border: 1px solid #999;
+  padding: .8em;
+}
+
+pre {
+  margin: 0;
+}
+
+#log {
+  color: red;
+}
+
+.show {
+  display: block;
+  font-family: monospace;
+  white-space: pre;
+}

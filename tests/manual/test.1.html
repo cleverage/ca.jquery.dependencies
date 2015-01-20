@@ -1,31 +1,58 @@
 <!DOCTYPE html>
-<title>Test async load</title>
-
-<p>Test loading a single dependency (string parameter)</p>
+<title>1. Test basic loading</title>
+<link rel="stylesheet" href="assets/styles.css">
 
 <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
 <script src="/ca.jquery.dependencies.js"></script>
-<script>
-jQuery(function () {
-  'use strict';
-  $('#log').append('DOM Ready\n');
-});
 
-jQuery
-  .dependencies('assets/test.a.js')
-  .fail(function (err) {
-    'use strict';
+<p>Test loading a single dependency (string parameter)</p>
+
+<h1>Test result</h1>
+
+<table>
+  <tr>
+    <th scope="col">Result
+    <th scope="col">Expected
+  <tr>
+    <td><pre id="log"></pre>
+    <td><pre>DOM Ready
+test.a.js loaded
+All dependencies loaded
+a has been called: ok</pre>
+</table>
+
+<h1>Code</h1>
+
+<script class="show">(function ($) {
+  'use strict';
+
+  // Testing loading a single dependency
+  // ---------------------------------------------
+
+  $.dependencies('assets/test.a.js')
+   .always(whatever)
+   .fail(error)
+   .done(success);
+
+
+  // UTILS
+  // ---------------------------------------------
+
+  function error(err) {
     $('#log').append(err + '\n');
-  })
-  .always(function () {
-    'use strict';
-    $('#log').append('All dependencies loaded\n');
-  })
-  .done(function () {
-    $('pre').a(1).css({
+  }
+
+  function success() {
+    $('#log').a('ok').css({
       color: 'green'
     });
-  });
-</script>
+  }
 
-<pre id="log"></pre>
+  function whatever() {
+    $('#log').append('All dependencies loaded\n');
+  }
+
+  $(function () {
+    $('#log').append('DOM Ready\n');
+  });
+})(jQuery);</script>
